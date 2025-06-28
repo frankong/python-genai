@@ -28,6 +28,7 @@ import http
 import inspect
 import io
 import json
+import json_repair
 import logging
 import math
 import os
@@ -255,13 +256,13 @@ class HttpResponse:
   def json(self) -> Any:
     if not self.response_stream[0]:  # Empty response
       return ''
-    return json.loads(self.response_stream[0])
+    return json_repair.loads(self.response_stream[0])
 
   def segments(self) -> Generator[Any, None, None]:
     if isinstance(self.response_stream, list):
       # list of objects retrieved from replay or from non-streaming API.
       for chunk in self.response_stream:
-        yield json.loads(chunk) if chunk else {}
+        yield json_repair.loads(chunk) if chunk else {}
     elif self.response_stream is None:
       yield from []
     else:
@@ -274,13 +275,13 @@ class HttpResponse:
             chunk = chunk.decode('utf-8')
           if chunk.startswith('data: '):
             chunk = chunk[len('data: ') :]
-          yield json.loads(chunk)
+          yield json_repair.loads(chunk)
 
   async def async_segments(self) -> AsyncIterator[Any]:
     if isinstance(self.response_stream, list):
       # list of objects retrieved from replay or from non-streaming API.
       for chunk in self.response_stream:
-        yield json.loads(chunk) if chunk else {}
+        yield json_repair.loads(chunk) if chunk else {}
     elif self.response_stream is None:
       async for c in []:  # type: ignore[attr-defined]
         yield c
@@ -296,7 +297,7 @@ class HttpResponse:
               chunk = chunk.decode('utf-8')
             if chunk.startswith('data: '):
               chunk = chunk[len('data: ') :]
-            yield json.loads(chunk)
+            yield json_repair.loads(chunk)
       elif hasattr(self.response_stream, 'content'):
         # This is aiohttp.ClientResponse.
         try:
@@ -311,7 +312,7 @@ class HttpResponse:
               chunk = chunk[len('data: ') :]
             chunk = chunk.strip()
             if chunk:
-              yield json.loads(chunk)
+              yield json_repair.loads(chunk)
         finally:
           if hasattr(self, '_session') and self._session:
             await self._session.close()
@@ -573,7 +574,7 @@ class BaseApiClient:
       # Do it once at the genai.Client level. Share among all requests.
       self._async_client_session_request_args = self._ensure_aiohttp_ssl_ctx(
           self._http_options
-      ) 
+      )
     self._websocket_ssl_ctx = self._ensure_websocket_ssl_ctx(
         self._http_options
     )
